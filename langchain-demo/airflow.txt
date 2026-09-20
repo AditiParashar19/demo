@@ -1,0 +1,414 @@
+Commands to install airflow
+
+sudo apt update
+sudo apt install -y python3.12-venv
+python3.12 -m venv air_venv
+source air_venv/bin/activate
+source air_venv/bin/activate
+pip install "apache-airflow==3.1.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.0/constraints-3.12.txt"
+python dag1.py
+
+
+pip install apache-airflow[celery]==3.1.0 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-3.1.0/constraints-3.12.txt
+
+nano ~/airflow-class/dags/my_first_aiops_dag.py
+ctrl+O -> enter -> ctrl+x
+export AIRFLOW_HOME=~/airflow-class
+airflow standalone
+
+new window
+cd airflow-class
+source .venv/bin/activate
+uv pip install graphviz
+airflow dags list | grep my_first_aiops_dag.py
+export AIRFLOW_HOME=~/airflow-class
+airflow db migrate
+airflow dags list | grep my_first_aiops_dag.py
+airflow dags unpause my_first_aiops_dag(dag id)
+
+airflow dags trigger my_first_aiops_dag
+
+----------------------------------------------------------------------
+workspaces/repo_name
+to install kafka
+
+pwd
+wget https://downloads.apache.org/kafka/4.3.1/kafka_2.13-4.3.1.tgz
+to check -> ls -lh kafka_2.13-4.3.1.tgz
+to extract -> tar -xzf kafka_2.13-4.3.1.tgz
+cd kafka_2.13-4.3.1
+java -version 
+if not installed ->?> sudo apt update
+sudo apt install -y openjdk-17-jdk
+
+# start KAFKA 
+KAFKA_CLUSTER_ID="$(bin/kafka-storage.sh random-uuid)"
+echo $KAFKA_CLUSTER_ID
+# format storage
+bin/kafka-storage.sh format --standalone -t "$KAFKA_CLUSTER_ID" -c config/server.properties
+
+
+new terminal 
+cd /workspaces/demo/kafka_2.13-4.3.1
+create topic 
+bin/kafka-topics.sh \
+  --create \
+  --topic server_metrics \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+
+bin/kafka-server-start.sh config/server.properties
+then we give data 
+
+
+
+question -3 
+pip install kafka-python
+create consumer.py 
+from kafka import KafkaConsumer
+import json
+
+# Connect to Kafka broker
+consumer = KafkaConsumer(
+    'server_metrics',
+    bootstrap_servers='localhost:9092',
+    auto_offset_reset='earliest',
+    enable_auto_commit=True,
+    value_deserializer=lambda x: json.loads(x.decode('utf-8'))
+)
+
+print("Consumer started...")
+print("Waiting for server metrics...\n")
+
+# Continuously receive messages
+for message in consumer:
+    data = message.value
+
+    server_id = data["server_id"]
+    cpu = data["cpu_usage"]
+    memory = data["memory_usage"]
+
+    print("Received:")
+    print(f"Server: {server_id}")
+    print(f"CPU: {cpu}%")
+    print(f"Memory: {memory}%")
+    print()
+
+    # Detect high CPU
+    if cpu > 80:
+        print(f"ALERT: High CPU detected on {server_id}")
+        print()
+
+---------------------------------------------
+
+python --versionpython -m venv practiceenvsource practiceenv/bin/activatecd folderpip install -r requirements.txt
+to run python  file ->  python analmoly_detection.py
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------
+# 1. Create sample server log dataset
+# ------------------------------------------------
+
+data = {
+    "Timestamp": [
+        "10:00", "10:01", "10:02", "10:03", "10:04",
+        "10:05", "10:06", "10:07", "10:08", "10:09",
+        "10:10", "10:11", "10:12", "10:13", "10:14",
+        "10:15", "10:16", "10:17", "10:18", "10:19"
+    ],
+
+    "CPU": [
+        45, 52, 48, 55, 50,
+        95, 53, 49, 51, 54,
+        56, 50, 97, 52, 48,
+        55, 57, 53, 92, 51
+    ],
+
+    "Memory": [
+        60, 62, 61, 63, 60,
+        64, 62, 61, 63, 65,
+        64, 62, 66, 63, 61,
+        62, 64, 63, 65, 62
+    ],
+
+    "Response_Time": [
+        120, 130, 125, 135, 128,
+        150, 132, 125, 130, 128,
+        135, 130, 160, 132, 125,
+        128, 135, 130, 155, 128
+    ]
+}
+
+df = pd.DataFrame(data)
+
+# ------------------------------------------------
+# 2. Basic statistics
+# ------------------------------------------------
+
+print("========== AIOps Log Anomaly Detection ==========")
+
+print("\nTotal records:", len(df))
+
+print("\nBasic Statistics:")
+print(df[["CPU", "Memory", "Response_Time"]].describe())
+
+# ------------------------------------------------
+# 3. Threshold-based anomaly detection
+# ------------------------------------------------
+
+# CPU threshold
+CPU_THRESHOLD = 90
+
+# Memory threshold
+MEMORY_THRESHOLD = 90
+
+# Response time threshold
+RESPONSE_THRESHOLD = 200
+
+# Detect anomaly if ANY metric crosses its threshold
+df["Anomaly"] = (
+    (df["CPU"] > CPU_THRESHOLD) |
+    (df["Memory"] > MEMORY_THRESHOLD) |
+    (df["Response_Time"] > RESPONSE_THRESHOLD)
+)
+
+# ------------------------------------------------
+# 4. Print anomalous records
+# ------------------------------------------------
+
+anomalies = df[df["Anomaly"]]
+
+print("\nAnomalies detected:", len(anomalies))
+
+print("\nAnomalous Records:")
+print(
+    anomalies[
+        ["Timestamp", "CPU", "Memory", "Response_Time"]
+    ].to_string(index=False)
+)
+
+print("\nTimestamp    CPU       Status")
+
+for _, row in anomalies.iterrows():
+    print(
+        f"{row['Timestamp']}       "
+        f"{row['CPU']}%       "
+        f"ANOMALY"
+    )
+
+# ------------------------------------------------
+# 5. Display graph
+# ------------------------------------------------
+
+plt.figure(figsize=(12, 6))
+
+# Normal CPU values
+normal = df[~df["Anomaly"]]
+anomaly = df[df["Anomaly"]]
+
+plt.plot(
+    df["Timestamp"],
+    df["CPU"],
+    marker="o",
+    label="CPU Usage"
+)
+
+# Highlight anomalies
+plt.scatter(
+    anomaly["Timestamp"],
+    anomaly["CPU"],
+    marker="x",
+    s=100,
+    label="Anomaly"
+)
+
+# Threshold line
+plt.axhline(
+    y=CPU_THRESHOLD,
+    linestyle="--",
+    label="CPU Threshold"
+)
+
+plt.xlabel("Timestamp")
+plt.ylabel("CPU Usage (%)")
+plt.title("AIOps CPU Usage and Anomalies")
+
+plt.xticks(rotation=45)
+
+plt.legend()
+plt.grid(True)
+
+plt.tight_layout()
+
+plt.show()
+---------------------------------------------------------------------------------------------------------------------------To download and extract kafka
+wget https://downloads.apache.org/kafka/4.2.0/kafka_2.13-4.2.0.tgz
+tar -xzf kafka_2.13-4.2.0.tgz
+cd kafka_2.13-4.2.0
+--------------------------------------------------------------------------------------------------------------
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator#from airflow.providers.standard.operators.python import # PythonOperator
+from datetime import datetime
+
+
+# Task 1: Collect Metrics
+def collect_metrics(**context):
+    metrics = {
+        "cpu": 87,
+        "memory": 65,
+        "response_time": 420
+    }
+
+    print("Metrics collected:")
+    print("CPU:", metrics["cpu"], "%")
+    print("Memory:", metrics["memory"], "%")
+    print("Response Time:", metrics["response_time"], "ms")
+
+    # Store metrics for next task
+    context["ti"].xcom_push(key="metrics", value=metrics)
+
+
+# Task 2: Process Metrics
+def process_metrics(**context):
+    metrics = context["ti"].xcom_pull(
+        task_ids="collect_metrics",
+        key="metrics"
+    )
+
+    print("Processing metrics...")
+    print("CPU:", metrics["cpu"], "%")
+    print("Memory:", metrics["memory"], "%")
+    print("Response Time:", metrics["response_time"], "ms")
+
+
+# Task 3: Detect Anomaly
+def detect_anomaly(**context):
+    metrics = context["ti"].xcom_pull(
+        task_ids="collect_metrics",
+        key="metrics"
+    )
+
+    if metrics["cpu"] > 80:
+        print("Anomaly detected: High CPU usage")
+    else:
+        print("No anomaly detected")
+
+
+# Task 4: Generate Report
+def generate_report():
+    print("===== AIOps Report =====")
+    print("Metrics collected successfully")
+    print("Metrics processed successfully")
+    print("Anomaly detection completed")
+    print("========================")
+
+
+# Create DAG
+with DAG(
+    dag_id="aiops_basic_workflow",
+    start_date=datetime(2026, 9, 20),
+    schedule=None,
+    catchup=False
+) as dag:
+
+    collect_metrics_task = PythonOperator(
+        task_id="collect_metrics",
+        python_callable=collect_metrics
+    )
+
+    process_metrics_task = PythonOperator(
+        task_id="process_metrics",
+        python_callable=process_metrics
+    )
+
+    detect_anomaly_task = PythonOperator(
+        task_id="detect_anomaly",
+        python_callable=detect_anomaly
+    )
+
+    generate_report_task = PythonOperator(
+        task_id="generate_report",
+        python_callable=generate_report
+    )
+
+    # Dependencies
+    collect_metrics_task >> process_metrics_task >> detect_anomaly_task >> generate_report_task
+-------------
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime
+
+
+def collect_metrics():
+    cpu = 87
+    memory = 65
+    response_time = 420
+
+    print("Metrics collected:")
+    print("CPU:", cpu, "%")
+    print("Memory:", memory, "%")
+    print("Response Time:", response_time, "ms")
+
+
+def process_metrics():
+    cpu = 87
+    memory = 65
+    response_time = 420
+
+    print("Processing metrics...")
+    print("CPU:", cpu, "%")
+    print("Memory:", memory, "%")
+    print("Response Time:", response_time, "ms")
+
+
+def detect_anomaly():
+    cpu = 87
+
+    if cpu > 80:
+        print("Anomaly detected: High CPU usage")
+    else:
+        print("No anomaly detected")
+
+
+def generate_report():
+    print("===== AIOps Report =====")
+    print("Metrics collected successfully")
+    print("Metrics processed successfully")
+    print("Anomaly detection completed")
+    print("========================")
+
+
+with DAG(
+    dag_id="aiops_basic_workflow",
+    start_date=datetime(2026, 9, 20),
+    schedule=None,
+    catchup=False
+) as dag:
+
+    collect_metrics = PythonOperator(
+        task_id="collect_metrics",
+        python_callable=collect_metrics
+    )
+
+    process_metrics = PythonOperator(
+        task_id="process_metrics",
+        python_callable=process_metrics
+    )
+
+    detect_anomaly = PythonOperator(
+        task_id="detect_anomaly",
+        python_callable=detect_anomaly
+    )
+
+    generate_report = PythonOperator(
+        task_id="generate_report",
+        python_callable=generate_report
+    )
+
+    collect_metrics >> process_metrics >> detect_anomaly >> generate_report
+------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------
