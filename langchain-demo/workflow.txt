@@ -1,0 +1,4 @@
+github workflows
+
+mkdir -p .github/workflows
+nano .github/workflows/hello.yml
